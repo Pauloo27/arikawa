@@ -182,19 +182,12 @@ func (s *Session) updateServer(ev *gateway.VoiceServerUpdateEvent) {
 // updateState is specifically used after connecting to monitor when the bot is
 // forced across channels.
 func (s *Session) updateState(ev *gateway.VoiceStateUpdateEvent) {
-	s.acquireUpdate(func() {
-		if s.state.GuildID != ev.GuildID || s.state.UserID != ev.UserID {
-			return
-		}
+	if s.state.GuildID != ev.GuildID || s.state.UserID != ev.UserID {
+		return
+	}
 
-		s.state.ChannelID = ev.ChannelID
-		s.state.SessionID = ev.SessionID
-
-		ctx, cancel := context.WithTimeout(context.Background(), WSTimeout)
-		defer cancel()
-
-		s.reconnectCtx(ctx)
-	})
+	s.state.ChannelID = ev.ChannelID
+	s.state.SessionID = ev.SessionID
 }
 
 // JoinChannelAndSpeak is a convenient function that calls JoinChannel then
@@ -416,6 +409,12 @@ func (s *Session) reconnectCtx(ctx context.Context) error {
 	// Start dispatching.
 	s.gwDone = ophandler.Loop(gwch, s.Handler)
 
+	if s.state.Flag != voicegateway.NotSpeaking {
+		if err := s.gateway.Speaking(gwctx, s.state.Flag); err != nil {
+			return errors.Wrap(err, "cannot re-send the last speaking packet")
+		}
+	}
+
 	ws.WSDebug("Voice reconnectCtx finished with no error")
 
 	return nil
@@ -492,6 +491,7 @@ func (s *Session) Speaking(ctx context.Context, flag voicegateway.SpeakingFlag) 
 		return err
 	}
 
+	s.state.Flag = flag
 	return nil
 }
 

@@ -38,6 +38,8 @@ type State struct {
 	SessionID string
 	Token     string
 	Endpoint  string
+
+	Flag SpeakingFlag
 }
 
 // Gateway represents a Discord Gateway Gateway connection.
